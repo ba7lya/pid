@@ -90,11 +90,13 @@ jobs:
 
       - name: Install pinned LLVM (Windows)
         if: runner.os == 'Windows'
-        shell: bash
+        shell: pwsh
         run: |
-          curl -fsSL -o llvm.exe "https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLVM_VERSION}/LLVM-${LLVM_VERSION}-win64.exe"
-          cmd //c "start /wait /D . llvm.exe /S"
-          echo "CLANG_FORMAT=C:/Program Files/LLVM/bin/clang-format.exe" >> "$GITHUB_ENV"
+          Invoke-WebRequest -Uri "https://github.com/llvm/llvm-project/releases/download/llvmorg-$env:LLVM_VERSION/LLVM-$env:LLVM_VERSION-win64.msi" -OutFile llvm.msi
+          # msiexec returns immediately; -Wait blocks until the silent install
+          # finishes so C:\Program Files\LLVM\bin exists for the next step.
+          Start-Process msiexec.exe -ArgumentList '/i','llvm.msi','/qn','/norestart' -Wait
+          "CLANG_FORMAT=C:/Program Files/LLVM/bin/clang-format.exe" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Check formatting
         shell: bash
@@ -120,11 +122,11 @@ jobs:
 
       - name: Install pinned LLVM (Windows)
         if: runner.os == 'Windows'
-        shell: bash
+        shell: pwsh
         run: |
-          curl -fsSL -o llvm.exe "https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLVM_VERSION}/LLVM-${LLVM_VERSION}-win64.exe"
-          cmd //c "start /wait /D . llvm.exe /S"
-          echo "CLANG_TIDY=C:/Program Files/LLVM/bin/clang-tidy.exe" >> "$GITHUB_ENV"
+          Invoke-WebRequest -Uri "https://github.com/llvm/llvm-project/releases/download/llvmorg-$env:LLVM_VERSION/LLVM-$env:LLVM_VERSION-win64.msi" -OutFile llvm.msi
+          Start-Process msiexec.exe -ArgumentList '/i','llvm.msi','/qn','/norestart' -Wait
+          "CLANG_TIDY=C:/Program Files/LLVM/bin/clang-tidy.exe" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Run clang-tidy on the public header
         shell: bash
