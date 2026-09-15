@@ -1,76 +1,55 @@
 ///
-/// @file example_heat.cxx
+/// @file example_temp.cxx
 /// @author BA7LYA (1042140025@qq.com)
-/// @brief
-/// @version 0.1
-/// @date 2025-07-10
+/// @brief PID control of the thermal plant from plant_models.hxx,
+/// demonstrating heater power saturation and a mid-run set point change.
+/// @version 0.2
+/// @date 2026-09-16
+/// SPDX-License-Identifier: MIT
 /// @copyright Copyright (c) 2025
 ///
 
-#include <algorithm>
-#include <cmath>
+#include <chrono>
 #include <iostream>
-#include <vector>
 
-#include "ba7lya/pid/pid_controller.hxx"
-
-// 模拟的温度系统
-class temperature_system {
-public:
-    temperature_system(const float initial_temp = 25.0f)
-        : current_temp_(initial_temp)
-        , heater_power_(0.0f) {}
-
-    float update(const float control_signal, const float dt) {
-        // 简单的热力学模型
-        heater_power_ = std::clamp(control_signal, 0.0f, 100.0f); // 限制加热功率
-        float heat_input = heater_power_ * 0.1f;
-        float heat_loss = (current_temp_ - ambient_temp) * 0.02f;
-        current_temp_ += (heat_input - heat_loss) * dt;
-        return current_temp_;
-    }
-
-    float get_temperature() const { return current_temp_; }
-
-private:
-    float current_temp_;
-    float heater_power_;
-    const float ambient_temp = 25.0f; // 环境温度
-};
+#include "pid_controller.hxx"
+#include "plant_models.hxx"
 
 int main() {
-    // 创建PID控制器 (Kp, Ki, Kd)
-    ba7lya::pid::pid_controller pid(2.0f, 0.5f, 1.0f);
+    using namespace std::chrono;
 
-    // 创建温度系统
+    constexpr double step_time = 0.1;
+    const duration<double> dt { step_time };
+
+    // Heater command is a power percentage: only the upper half makes sense,
+    // and the integral needs its own limit to recover quickly when the set
+    // point is lowered.
+    ba7lya::pid::pid_controller<double> pid(2.0, 0.5, 1.0);
+    pid.set_output_limits(0.0, 100.0);
+    pid.set_integral_limits(0.0, 200.0);
+
     temperature_system system;
 
-    // 控制参数
-    const float targetTemp = 80.0f; // 目标温度80°C
-    const float dt = 0.1f;          // 模拟时间步长(秒)
-    const int steps = 200;          // 模拟步数
+    double target = 80.0; // Target temperature (deg C)
+    constexpr int steps = 2000;
 
-    // 记录数据用于绘图
-    std::vector<float> temps;
-    std::vector<float> controls;
+    std::cout << "time,temp,control\n";
+    for (int phase = 0; phase < 2; ++phase) {
+        if (phase == 1) {
+            // Drop the set point: with a wound-up integral the controller
+            // would keep heating for a long time; clamping prevents this.
+            target = 60.0;
+            std::cout << "# target changed to " << target << " deg C\n";
+        }
+        for (int i = 0; i < steps; ++i) {
+            const double t = (phase * steps + i) * step_time;
+            double current_temp = system.get_temperature();
+            double control = pid.compute(target, current_temp, dt);
+            system.update(control, step_time);
 
-    // 模拟循环
-    for (int i = 0; i < steps; ++i) {
-        float currentTemp = system.get_temperature();
-        float control = pid.compute(targetTemp, currentTemp);
-        system.update(control, dt);
-
-        // 记录数据
-        temps.push_back(currentTemp);
-        controls.push_back(control);
-
-        // 打印状态
-        std::cout << "step " << i << ": temp=" << currentTemp << "^c, control=" << control << "%"
-                  << std::endl;
+            if (i % 20 == 0) { std::cout << t << "," << current_temp << "," << control << "\n"; }
+        }
     }
-
-    // 这里可以添加代码将temps和controls数据保存到文件
-    // 以便用Python或其他工具绘制响应曲线
 
     return 0;
 }

@@ -1,8 +1,8 @@
 {
-  "builtin-baseline": "f5800a22acb14d7f753e8be12fe5ec2bc999ab44",
+  "license": "MIT",
+  "builtin-baseline": "9e44ec0e9f247d77c230ced0ee66c76296837807",
   "dependencies": [
     "benchmark",
-    "eigen3",
     "gtest",
     "ode"
   ]
