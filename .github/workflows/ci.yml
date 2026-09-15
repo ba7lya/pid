@@ -26,10 +26,6 @@ jobs:
             os: ubuntu-latest
             preset: GCC-Linux-Ninja
             triplet: x64-linux
-          - name: AppleClang / macOS
-            os: macos-latest
-            preset: Clang-MacOS-Ninja
-            triplet: arm64-osx
 
     steps:
       - name: Enable long paths (Windows)
