@@ -1,0 +1,100 @@
+# SPDX-License-Identifier: MIT
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  VCPKG_BINARY_SOURCES: "clear;files,${{ github.workspace }}/vcpkg_cache,readwrite"
+
+jobs:
+  build-test:
+    name: ${{ matrix.name }} ${{ matrix.config }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        config: [Debug, Release]
+        include:
+          - name: MSVC 2022 x64 / Windows
+            os: windows-latest
+            preset: MSVC-2022-x64-Ninja
+            triplet: x64-windows
+          - name: GCC / Linux
+            os: ubuntu-latest
+            preset: GCC-Linux-Ninja
+            triplet: x64-linux
+          - name: AppleClang / macOS
+            os: macos-latest
+            preset: Clang-MacOS-Ninja
+            triplet: arm64-osx
+
+    steps:
+      - name: Enable long paths (Windows)
+        if: runner.os == 'Windows'
+        run: git config --global core.longpaths true
+
+      - name: Checkout (with vcpkg submodule)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Enter MSVC developer environment
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Restore vcpkg binary cache
+        uses: actions/cache@v4
+        with:
+          path: vcpkg_cache
+          key: vcpkg-${{ matrix.triplet }}-${{ hashFiles('vcpkg.json') }}
+
+      - name: Configure
+        shell: bash
+        run: |
+          cmake --preset "${{ matrix.preset }}" \
+            -Dba7lya.pid_BUILD_TEST=ON \
+            -Dba7lya.pid_BUILD_EXAMPLES=ON \
+            -Dba7lya.pid_BUILD_BENCHMARK=ON
+
+      - name: Build
+        shell: bash
+        run: cmake --build --preset "${{ matrix.preset }}-${{ matrix.config }}" --parallel
+
+      - name: Test
+        shell: bash
+        run: ctest --preset "${{ matrix.preset }}-Test" -C "${{ matrix.config }}"
+
+      - name: Upload compile database
+        if: always() && matrix.config == 'Release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: compile_commands-${{ matrix.triplet }}
+          path: build/${{ matrix.preset }}/compile_commands.json
+          if-no-files-found: ignore
+
+  quality:
+    name: clang-format + clang-tidy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install clang tools (pinned)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format-19 clang-tidy-19
+
+      - name: Check formatting
+        shell: bash
+        run: |
+          files=$(find include examples tests benchmark -name '*.cxx' -o -name '*.hxx')
+          clang-format-19 --dry-run -Werror --style=file $files
+
+      - name: Run clang-tidy on the public header
+        shell: bash
+        run: |
+          # The library header only includes the standard library, so it can
+          # be analyzed without a compilation database.
+          clang-tidy-19 include/*.hxx -- -std=c++23

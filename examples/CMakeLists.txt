@@ -1,32 +1,27 @@
+# SPDX-License-Identifier: MIT
 # --- CMake Version ---
 cmake_minimum_required(VERSION 3.21)
 
-# --- example_1_order ---
-add_executable(${PROJECT_NAME}_example_1_order)
-target_sources(${PROJECT_NAME}_example_1_order PRIVATE example_1_order.cxx)
-target_link_libraries(${PROJECT_NAME}_example_1_order PRIVATE ${PROJECT_NAME})
-target_compile_features(${PROJECT_NAME}_example_1_order PRIVATE cxx_std_23)
+# --- plain examples (stdlib + the header-only library only) ---
+# Every demo program is a single .cxx file that only needs the header-only
+# library; keep them in one list to avoid repeated boilerplate.
+set(_examples
+	example_1_order
+	example_2_order
+	example_n_order
+	example_temp
+)
 
-# --- example_2_order ---
-add_executable(${PROJECT_NAME}_example_2_order)
-target_sources(${PROJECT_NAME}_example_2_order PRIVATE example_2_order.cxx)
-target_link_libraries(${PROJECT_NAME}_example_2_order PRIVATE ${PROJECT_NAME})
-target_compile_features(${PROJECT_NAME}_example_2_order PRIVATE cxx_std_23)
+foreach(_example IN LISTS _examples)
+	add_executable(${PROJECT_NAME}_${_example})
+	target_sources(${PROJECT_NAME}_${_example} PRIVATE ${_example}.cxx)
+	target_link_libraries(${PROJECT_NAME}_${_example} PRIVATE ${PROJECT_NAME})
+endforeach()
 
-# --- example_n_order ---
-add_executable(${PROJECT_NAME}_example_n_order)
-target_sources(${PROJECT_NAME}_example_n_order PRIVATE example_n_order.cxx)
-target_link_libraries(${PROJECT_NAME}_example_n_order PRIVATE ${PROJECT_NAME})
-target_compile_features(${PROJECT_NAME}_example_n_order PRIVATE cxx_std_23)
-
-# --- example_dc_motor ---
-add_executable(${PROJECT_NAME}_example_dc_motor)
-target_sources(${PROJECT_NAME}_example_dc_motor PRIVATE example_dc_motor.cxx)
-target_link_libraries(${PROJECT_NAME}_example_dc_motor PRIVATE ${PROJECT_NAME})
-target_compile_features(${PROJECT_NAME}_example_dc_motor PRIVATE cxx_std_23)
-
-# --- example_temp ---
-add_executable(${PROJECT_NAME}_example_temp)
-target_sources(${PROJECT_NAME}_example_temp PRIVATE example_temp.cxx)
-target_link_libraries(${PROJECT_NAME}_example_temp PRIVATE ${PROJECT_NAME})
-target_compile_features(${PROJECT_NAME}_example_temp PRIVATE cxx_std_23)
+# --- ODE-based example ---
+# Physical DC motor demos: the rotor is simulated with the ODE rigid body
+# library (wrapped in examples/ode_plants.hxx), so this target depends on ODE.
+find_package(ode CONFIG REQUIRED)
+add_executable(${PROJECT_NAME}_example_motor)
+target_sources(${PROJECT_NAME}_example_motor PRIVATE example_motor.cxx)
+target_link_libraries(${PROJECT_NAME}_example_motor PRIVATE ${PROJECT_NAME} ODE::ODE)

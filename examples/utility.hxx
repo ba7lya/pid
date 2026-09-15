@@ -1,9 +1,10 @@
 ///
 /// @file utility.hxx
 /// @author BA7LYA (1042140025@qq.com)
-/// @brief
-/// @version 0.1
-/// @date 2025-07-23
+/// @brief Small helpers shared by the example programs.
+/// @version 0.2
+/// @date 2026-09-16
+/// SPDX-License-Identifier: MIT
 /// @copyright Copyright (c) 2025
 ///
 
@@ -14,14 +15,21 @@
 #include <stdexcept>
 #include <string>
 
-std::array<double, 3> parse_args(int argc, char* argv[]) {
-    std::array<double, 3> args;
-    for (int i = 1; i < argc; ++i) { // 跳过程序名argv[0]
+///
+/// @brief Parse up to three numeric command line arguments.
+/// @param argc Argument count from main().
+/// @param argv Argument vector from main().
+/// @return The three parsed values (missing arguments are left uninitialized).
+/// @throw std::runtime_error If an argument is not a pure number.
+///
+inline std::array<double, 3> parse_args(int argc, char* argv[]) {
+    std::array<double, 3> args {};
+    for (int i = 1; i < argc; ++i) { // argv[0] is the program name, skip it
         try {
             size_t pos;
             double value = std::stod(argv[i], &pos);
 
-            // 检查是否整个字符串都被转换
+            // The whole string must have been consumed by the conversion
             if (argv[i][pos] != '\0') {
                 throw std::invalid_argument("trailing characters after number");
             }
