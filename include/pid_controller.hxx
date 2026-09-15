@@ -198,10 +198,10 @@ public:
 
         // Integrate the error; keep the integral inside its hard limits.
         const T integral_candidate
-            = std::clamp(integral_ + error * dt_seconds, integral_min_, integral_max_);
+            = std::clamp(integral_ + (error * dt_seconds), integral_min_, integral_max_);
 
         // Weighted sum of the three terms, then output saturation.
-        const T u_unsaturated = kp_ * error + ki_ * integral_candidate + d_term;
+        const T u_unsaturated = (kp_ * error) + (ki_ * integral_candidate) + d_term;
         const T u = std::clamp(u_unsaturated, output_min_, output_max_);
 
         // Commit the integral according to the anti-windup policy.
@@ -365,7 +365,7 @@ private:
     bool primed_ = false;
 
     // Timestamp of the last compute() (or of construction), for the wall-clock overload
-    typename Clock::time_point last_time_;
+    Clock::time_point last_time_;
 };
 
 ///

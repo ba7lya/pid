@@ -16,9 +16,11 @@ Checks: >
   cppcoreguidelines-*,
   -modernize-use-trailing-return-type,
   -modernize-avoid-c-arrays,
+  -performance-enum-size,
   -readability-magic-numbers,
   -readability-identifier-length,
   -readability-function-cognitive-complexity,
+  -readability-math-missing-parentheses,
   -cppcoreguidelines-avoid-magic-numbers,
   -cppcoreguidelines-pro-bounds-constant-array-index,
   -cppcoreguidelines-pro-type-vararg,
@@ -50,9 +52,11 @@ CheckOptions:
   - key: readability-identifier-naming.ProtectedMemberSuffix
     value: '_'
   - key: readability-identifier-naming.GlobalConstantCase
-    value: UPPER_CASE
+    value: lower_case
+  - key: readability-identifier-naming.GlobalConstantSuffix
+    value: '_'
   - key: readability-identifier-naming.StaticConstantCase
-    value: any_case
+    value: aNy_CasE
   - key: readability-identifier-naming.MacroDefinitionCase
     value: UPPER_CASE
   - key: readability-identifier-naming.NamespaceCase

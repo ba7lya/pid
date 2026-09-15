@@ -8,9 +8,10 @@ on:
 
 env:
   VCPKG_BINARY_SOURCES: "clear;files,${{ github.workspace }}/vcpkg_cache,readwrite"
+  LLVM_VERSION: "23.1.1"
 
 jobs:
-  build-test-quality:
+  build-test:
     name: ${{ matrix.name }} ${{ matrix.config }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -47,12 +48,6 @@ jobs:
           path: vcpkg_cache
           key: vcpkg-${{ matrix.triplet }}-${{ hashFiles('vcpkg.json') }}
 
-      - name: Install clang tools (Linux)
-        if: runner.os == 'Linux' && matrix.config == 'Release'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang-format-19 clang-tidy-19
-
       - name: Configure
         shell: bash
         run: |
@@ -69,21 +64,6 @@ jobs:
         shell: bash
         run: ctest --preset "${{ matrix.preset }}-Test" -C "${{ matrix.config }}"
 
-      - name: Check formatting (Linux)
-        if: runner.os == 'Linux' && matrix.config == 'Release'
-        shell: bash
-        run: |
-          files=$(find include examples tests benchmark -name '*.cxx' -o -name '*.hxx')
-          clang-format-19 --dry-run -Werror --style=file $files
-
-      - name: Run clang-tidy on the public header (Linux)
-        if: runner.os == 'Linux' && matrix.config == 'Release'
-        shell: bash
-        run: |
-          # The library header only includes the standard library, so it can
-          # be analyzed without a compilation database.
-          clang-tidy-19 include/*.hxx -- -std=c++23
-
       - name: Upload compile database
         if: always() && matrix.config == 'Release'
         uses: actions/upload-artifact@v4
@@ -91,3 +71,64 @@ jobs:
           name: compile_commands-${{ matrix.triplet }}
           path: build/${{ matrix.preset }}/compile_commands.json
           if-no-files-found: ignore
+
+  clang-format:
+    name: clang-format (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pinned clang-format (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          wget -qO- https://apt.llvm.org/llvm.sh | sudo bash -s 23
+          echo "CLANG_FORMAT=clang-format-23" >> "$GITHUB_ENV"
+
+      - name: Install pinned LLVM (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          curl -fsSL -o llvm.exe "https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLVM_VERSION}/LLVM-${LLVM_VERSION}-win64.exe"
+          cmd //c "start /wait /D . llvm.exe /S"
+          echo "CLANG_FORMAT=C:/Program Files/LLVM/bin/clang-format.exe" >> "$GITHUB_ENV"
+
+      - name: Check formatting
+        shell: bash
+        run: |
+          files=$(find include examples tests benchmark -name '*.cxx' -o -name '*.hxx')
+          "$CLANG_FORMAT" --dry-run -Werror --style=file $files
+
+  clang-tidy:
+    name: clang-tidy (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pinned clang-tidy (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          wget -qO- https://apt.llvm.org/llvm.sh | sudo bash -s 23
+          echo "CLANG_TIDY=clang-tidy-23" >> "$GITHUB_ENV"
+
+      - name: Install pinned LLVM (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          curl -fsSL -o llvm.exe "https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLVM_VERSION}/LLVM-${LLVM_VERSION}-win64.exe"
+          cmd //c "start /wait /D . llvm.exe /S"
+          echo "CLANG_TIDY=C:/Program Files/LLVM/bin/clang-tidy.exe" >> "$GITHUB_ENV"
+
+      - name: Run clang-tidy on the public header
+        shell: bash
+        run: |
+          # The library header only includes the standard library, so it can
+          # be analyzed without a compilation database.
+          "$CLANG_TIDY" include/*.hxx -- -std=c++23
