@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: MIT
+# Normalize line endings: LF in the repository, platform-native in the
+# working tree.
+* text=auto
+
+# C/C++ sources keep CRLF in the working tree on every platform: the project
+# .clang-format sets LineEnding: CRLF, so the CI clang-format check must see
+# CRLF files on Linux runners too, otherwise it flags every line.
+*.cxx  text eol=crlf
+*.hxx  text eol=crlf
+*.hxx.in text eol=crlf
+*.h    text eol=crlf
+*.hpp  text eol=crlf
+
+# Everything else normalizes to LF in the checkout.
+*.txt  text eol=lf
+*.json text eol=lf
+*.yml  text eol=lf
+*.md   text eol=lf
+.clang-format text eol=lf
+.clang-tidy   text eol=lf
+.gitignore    text eol=lf
+.gitattributes text eol=lf
+.gitmodules   text eol=lf
+
+# Windows-specific scripts keep CRLF.
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Binaries
+*.png binary
+*.ico binary
