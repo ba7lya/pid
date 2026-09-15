@@ -10,7 +10,7 @@ env:
   VCPKG_BINARY_SOURCES: "clear;files,${{ github.workspace }}/vcpkg_cache,readwrite"
 
 jobs:
-  build-test:
+  build-test-quality:
     name: ${{ matrix.name }} ${{ matrix.config }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -47,6 +47,12 @@ jobs:
           path: vcpkg_cache
           key: vcpkg-${{ matrix.triplet }}-${{ hashFiles('vcpkg.json') }}
 
+      - name: Install clang tools (Linux)
+        if: runner.os == 'Linux' && matrix.config == 'Release'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format-19 clang-tidy-19
+
       - name: Configure
         shell: bash
         run: |
@@ -63,6 +69,21 @@ jobs:
         shell: bash
         run: ctest --preset "${{ matrix.preset }}-Test" -C "${{ matrix.config }}"
 
+      - name: Check formatting (Linux)
+        if: runner.os == 'Linux' && matrix.config == 'Release'
+        shell: bash
+        run: |
+          files=$(find include examples tests benchmark -name '*.cxx' -o -name '*.hxx')
+          clang-format-19 --dry-run -Werror --style=file $files
+
+      - name: Run clang-tidy on the public header (Linux)
+        if: runner.os == 'Linux' && matrix.config == 'Release'
+        shell: bash
+        run: |
+          # The library header only includes the standard library, so it can
+          # be analyzed without a compilation database.
+          clang-tidy-19 include/*.hxx -- -std=c++23
+
       - name: Upload compile database
         if: always() && matrix.config == 'Release'
         uses: actions/upload-artifact@v4
@@ -70,27 +91,3 @@ jobs:
           name: compile_commands-${{ matrix.triplet }}
           path: build/${{ matrix.preset }}/compile_commands.json
           if-no-files-found: ignore
-
-  quality:
-    name: clang-format + clang-tidy
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install clang tools (pinned)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang-format-19 clang-tidy-19
-
-      - name: Check formatting
-        shell: bash
-        run: |
-          files=$(find include examples tests benchmark -name '*.cxx' -o -name '*.hxx')
-          clang-format-19 --dry-run -Werror --style=file $files
-
-      - name: Run clang-tidy on the public header
-        shell: bash
-        run: |
-          # The library header only includes the standard library, so it can
-          # be analyzed without a compilation database.
-          clang-tidy-19 include/*.hxx -- -std=c++23
